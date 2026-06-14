@@ -68,10 +68,11 @@ export function useStatuses(): UseStatuses {
       setLoaded(true);
       return;
     }
+    const sb = supabase; // non-null reference (narrowing is lost inside closures)
     let active = true;
 
     (async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from(STATUS_TABLE)
         .select("*");
       if (!active) return;
@@ -86,7 +87,7 @@ export function useStatuses(): UseStatuses {
       setLoaded(true);
     })();
 
-    const channel = supabase
+    const channel = sb
       .channel("deliverable_status_rt")
       .on(
         "postgres_changes",
@@ -116,7 +117,7 @@ export function useStatuses(): UseStatuses {
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      sb.removeChannel(channel);
     };
   }, []);
 
@@ -139,7 +140,8 @@ export function useStatuses(): UseStatuses {
       setMap((p) => ({ ...p, [id]: optimistic }));
 
       if (!supabase) return;
-      supabase
+      const sb = supabase; // non-null reference for the async .then below
+      sb
         .from(STATUS_TABLE)
         .upsert({
           id,
