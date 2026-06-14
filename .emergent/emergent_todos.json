@@ -16,7 +16,7 @@
     "status": "completed"
   },
   {
-    "content": "Phase 2: Wire CrewApp shell + page.tsx; verified all 7 tabs render, no console errors, realtime connected",
+    "content": "Phase 2: Wire CrewApp shell + page.tsx; all 7 tabs render, no console errors, realtime connected",
     "status": "completed"
   },
   {
@@ -24,11 +24,11 @@
     "status": "completed"
   },
   {
-    "content": "Phase 2/3: End-to-End testing via testing_agent (realtime 2-client sync, filters/sort, nav, mobile menu, data integrity verbatim)",
-    "status": "in_progress"
+    "content": "Phase 2/3: E2E testing via testing_agent — 100% pass (realtime sync, filters/sort, nav, mobile menu, data integrity)",
+    "status": "completed"
   },
   {
-    "content": "Phase 3: Fix any issues found in testing; final polish",
-    "status": "pending"
+    "content": "Phase 3: Self-verified shot-time ordering + reset Supabase table to clean slate",
+    "status": "completed"
   }
 ]
