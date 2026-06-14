@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { Pencil, ExternalLink, Plus } from "lucide-react";
 import { DELIVERABLES, SOCIALS } from "@/lib/data";
 import type { RefLink } from "@/lib/data";
-import { cn, dowIndex, isHardDue, isTbdDue } from "@/lib/utils";
+import { cn, dowIndex, isHardDue, isTbdDue, resolveLoc } from "@/lib/utils";
 import type { UseStatuses } from "@/lib/useStatuses";
+import type { StatusRow, StatusLink } from "@/lib/status";
 import {
   VideoSocialTag,
   MapLink,
@@ -16,6 +18,13 @@ import {
   EmptyState,
 } from "../primitives";
 import { StatusControl } from "../StatusControl";
+import {
+  EditDialog,
+  DeliveredDialog,
+  type EditableItem,
+  type CurrentValues,
+  type EditPartial,
+} from "../DeliverableDialogs";
 
 type DayMode = "filming" | "due";
 type TypeFilter = "all" | "video" | "social";
@@ -69,13 +78,29 @@ const UNIFIED: Unified[] = [
   })),
 ];
 
+/** Merge a static item with any saved overrides. */
+function eff(item: Unified, row?: StatusRow) {
+  return {
+    title: row?.title ?? item.title,
+    notes: row?.notes ?? item.notes,
+    loc: row?.loc ?? item.loc,
+    due: row?.due ?? item.due,
+    links: (row?.links ?? item.links) as RefLink[] | undefined,
+    deliveredLink: row?.delivered_link ?? null,
+  };
+}
+
 function DueText({ due }: { due: string }) {
   const hard = isHardDue(due);
   const tbd = isTbdDue(due);
   return (
     <span
       className={cn(
-        hard ? "font-semibold text-deadline" : tbd ? "italic text-ink/45" : "text-ink/70"
+        hard
+          ? "font-semibold text-deadline"
+          : tbd
+          ? "italic text-ink/45"
+          : "text-ink/70"
       )}
     >
       {due}
@@ -103,61 +128,129 @@ function MetaRow({
 function DeliverableCard({
   item,
   statuses,
+  onEdit,
+  onDelivered,
+  onEditLink,
 }: {
   item: Unified;
   statuses: UseStatuses;
+  onEdit: (id: string) => void;
+  onDelivered: (id: string) => void;
+  onEditLink: (id: string) => void;
 }) {
+  const row = statuses.rowOf(item.id);
+  const e = eff(item, row);
+  const status = row?.status ?? "not_started";
+  const origLocName = resolveLoc(item.loc)?.name ?? "";
+  const effLocName = resolveLoc(e.loc)?.name ?? "";
+  const edited =
+    e.title !== item.title ||
+    e.notes !== item.notes ||
+    e.due !== item.due ||
+    effLocName !== origLocName ||
+    JSON.stringify(e.links ?? []) !== JSON.stringify(item.links ?? []);
+
   return (
     <div className="rounded-2xl border border-line bg-card p-4 shadow-soft">
-      <div className="flex items-center gap-2">
-        <VideoSocialTag kind={item.kind} />
-        {item.kind === "social" && (
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-              item.group === "must"
-                ? "bg-sash/10 text-sash"
-                : "bg-ink/6 text-ink/50"
-            )}
-          >
-            {item.group === "must" ? "Must-have" : "Nice-to-have"}
-          </span>
-        )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <VideoSocialTag kind={item.kind} />
+          {item.kind === "social" && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                item.group === "must"
+                  ? "bg-sash/10 text-sash"
+                  : "bg-ink/6 text-ink/50"
+              )}
+            >
+              {item.group === "must" ? "Must-have" : "Nice-to-have"}
+            </span>
+          )}
+          {edited && (
+            <span className="rounded-full bg-crown/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-crown-deep">
+              Edited
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => onEdit(item.id)}
+          aria-label="Edit deliverable"
+          className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
+        >
+          <Pencil size={15} />
+        </button>
       </div>
+
       <h3 className="mt-2 font-serif text-[16px] font-semibold leading-snug text-ink">
-        {item.title}
+        {e.title}
       </h3>
 
       <div className="mt-3 space-y-1.5">
         <MetaRow label="Film">{item.filmLabel}</MetaRow>
         <MetaRow label="Where">
-          {item.loc ? <MapLink loc={item.loc} /> : <span className="text-ink/40">—</span>}
+          {e.loc ? (
+            <MapLink loc={e.loc} />
+          ) : (
+            <span className="text-ink/40">—</span>
+          )}
         </MetaRow>
         <MetaRow label="Due">
-          <DueText due={item.due} />
+          <DueText due={e.due} />
         </MetaRow>
-        {item.socialsNote && (
-          <MetaRow label="Social">{item.socialsNote}</MetaRow>
-        )}
+        {item.socialsNote && <MetaRow label="Social">{item.socialsNote}</MetaRow>}
       </div>
 
-      <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink/60">
-        {item.notes}
-      </p>
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink/60">{e.notes}</p>
 
-      {item.links && item.links.length > 0 && (
+      {e.links && e.links.length > 0 && (
         <div className="mt-2.5">
-          <RefChips links={item.links} />
+          <RefChips links={e.links} />
         </div>
       )}
 
       <div className="mt-3.5 border-t border-line/70 pt-3">
         <StatusControl
           id={item.id}
-          row={statuses.rowOf(item.id)}
+          row={row}
           onSet={statuses.setStatus}
+          onRequestDelivered={onDelivered}
         />
       </div>
+
+      {status === "delivered" && (
+        <div className="mt-2.5">
+          {e.deliveredLink ? (
+            <div className="flex items-center gap-2 rounded-xl bg-sash/8 px-3 py-2.5">
+              <a
+                href={e.deliveredLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-w-0 flex-1 items-center gap-2 text-[13px] font-semibold text-sash hover:underline"
+              >
+                <ExternalLink size={15} className="shrink-0" />
+                <span className="truncate">Open delivery</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => onEditLink(item.id)}
+                className="shrink-0 text-[12px] font-semibold text-ink/45 hover:text-ink"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onEditLink(item.id)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sash/40 bg-sash/5 px-3 py-2.5 text-[13px] font-semibold text-sash transition-colors hover:bg-sash/10"
+            >
+              <Plus size={15} /> Add delivery link
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -167,6 +260,12 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deliver, setDeliver] = useState<{
+    id: string;
+    phase: "confirm" | "link";
+  } | null>(null);
 
   // Switching filming/due changes the day axis — clear the day selection.
   useEffect(() => {
@@ -178,8 +277,15 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
     (typeFilter === "video" && i.kind === "video") ||
     (typeFilter === "social" && i.kind === "social");
 
-  // Day chips (driven by type filter + mode, independent of the text query).
-  const dayChips = useMemo(() => {
+  const q = query.trim().toLowerCase();
+  const byQuery = (i: Unified) => {
+    if (!q) return true;
+    const e = eff(i, statuses.rowOf(i.id));
+    return [e.title, e.due, e.notes].join(" ").toLowerCase().includes(q);
+  };
+
+  // Day chips (driven by type filter + mode; independent of text query).
+  const dayChips = (() => {
     const counts = new Map<string, number>();
     for (const i of UNIFIED) {
       if (!byType(i)) continue;
@@ -192,43 +298,98 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
     return [...counts.entries()]
       .sort((a, b) => dowIndex(a[0]) - dowIndex(b[0]))
       .map(([day, count]) => ({ day, count }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayMode, typeFilter]);
+  })();
 
-  const q = query.trim().toLowerCase();
-  const byQuery = (i: Unified) =>
-    !q ||
-    [i.title, i.due, i.notes].join(" ").toLowerCase().includes(q);
-
-  // ----- Flat (single day selected) -----
-  const flat = useMemo(() => {
-    if (!selectedDay) return null;
-    let list = UNIFIED.filter(byType).filter(byQuery).filter((i) =>
-      dayMode === "filming"
-        ? i.filmDays.includes(selectedDay)
-        : i.dueDay === selectedDay
-    );
+  // Flat (single day) vs grouped (All).
+  let flat: Unified[] | null = null;
+  if (selectedDay) {
+    flat = UNIFIED.filter(byType)
+      .filter(byQuery)
+      .filter((i) =>
+        dayMode === "filming"
+          ? i.filmDays.includes(selectedDay)
+          : i.dueDay === selectedDay
+      );
     if (dayMode === "filming") {
-      list = [...list].sort((a, b) => {
+      flat = [...flat].sort((a, b) => {
         const am = a.startMin ?? Number.POSITIVE_INFINITY;
         const bm = b.startMin ?? Number.POSITIVE_INFINITY;
         return am - bm;
       });
     }
-    return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDay, dayMode, typeFilter, q]);
+  }
 
-  // ----- Grouped (All) -----
-  const grouped = useMemo(() => {
-    const visible = UNIFIED.filter(byType).filter(byQuery);
-    return {
-      video: visible.filter((i) => i.group === "video"),
-      must: visible.filter((i) => i.group === "must"),
-      nice: visible.filter((i) => i.group === "nice"),
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, q]);
+  const visible = UNIFIED.filter(byType).filter(byQuery);
+  const grouped = {
+    video: visible.filter((i) => i.group === "video"),
+    must: visible.filter((i) => i.group === "must"),
+    nice: visible.filter((i) => i.group === "nice"),
+  };
+
+  const cardProps = {
+    statuses,
+    onEdit: (id: string) => setEditingId(id),
+    onDelivered: (id: string) => setDeliver({ id, phase: "confirm" as const }),
+    onEditLink: (id: string) => setDeliver({ id, phase: "link" as const }),
+  };
+
+  // Dialog data
+  const editingItem = editingId
+    ? UNIFIED.find((i) => i.id === editingId) ?? null
+    : null;
+  const editableItem: EditableItem | null = editingItem
+    ? {
+        id: editingItem.id,
+        kind: editingItem.kind,
+        title: editingItem.title,
+        notes: editingItem.notes,
+        loc: editingItem.loc,
+        due: editingItem.due,
+        links: editingItem.links,
+      }
+    : null;
+  const editingCurrent: CurrentValues | null = editingItem
+    ? (() => {
+        const e = eff(editingItem, statuses.rowOf(editingItem.id));
+        return {
+          title: e.title,
+          notes: e.notes,
+          locText: e.loc ? resolveLoc(e.loc)?.name ?? e.loc : "",
+          due: e.due,
+          links: (e.links ?? []) as StatusLink[],
+        };
+      })()
+    : null;
+
+  const handleSave = (partial: EditPartial) => {
+    if (!editingItem) return;
+    const origLocName = resolveLoc(editingItem.loc)?.name ?? "";
+    // Collapse fields that match the original back to null (no override).
+    const title =
+      partial.title && partial.title !== editingItem.title
+        ? partial.title
+        : null;
+    const notes =
+      partial.notes && partial.notes !== editingItem.notes
+        ? partial.notes
+        : null;
+    const due =
+      partial.due && partial.due !== editingItem.due ? partial.due : null;
+    const loc =
+      partial.loc && partial.loc !== origLocName ? partial.loc : null;
+    const links =
+      partial.links &&
+      JSON.stringify(partial.links) !==
+        JSON.stringify(editingItem.links ?? [])
+        ? partial.links
+        : null;
+    statuses.updateFields(editingItem.id, { title, notes, loc, due, links });
+  };
+
+  const deliverItem = deliver
+    ? UNIFIED.find((i) => i.id === deliver.id) ?? null
+    : null;
+  const deliverRow = deliver ? statuses.rowOf(deliver.id) : undefined;
 
   return (
     <div className="space-y-4">
@@ -336,11 +497,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
         ) : (
           <div className="space-y-3">
             {flat.map((item) => (
-              <DeliverableCard
-                key={item.id}
-                item={item}
-                statuses={statuses}
-              />
+              <DeliverableCard key={item.id} item={item} {...cardProps} />
             ))}
           </div>
         )
@@ -352,7 +509,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
                 Production Videos
               </SectionTitle>
               {grouped.video.map((item) => (
-                <DeliverableCard key={item.id} item={item} statuses={statuses} />
+                <DeliverableCard key={item.id} item={item} {...cardProps} />
               ))}
             </section>
           )}
@@ -362,7 +519,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
                 Social — Must-Have
               </SectionTitle>
               {grouped.must.map((item) => (
-                <DeliverableCard key={item.id} item={item} statuses={statuses} />
+                <DeliverableCard key={item.id} item={item} {...cardProps} />
               ))}
             </section>
           )}
@@ -372,7 +529,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
                 Social — Nice-to-Have
               </SectionTitle>
               {grouped.nice.map((item) => (
-                <DeliverableCard key={item.id} item={item} statuses={statuses} />
+                <DeliverableCard key={item.id} item={item} {...cardProps} />
               ))}
             </section>
           )}
@@ -382,6 +539,43 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
               <EmptyState>No deliverables match your filters.</EmptyState>
             )}
         </div>
+      )}
+
+      {/* Dialogs */}
+      {editableItem && editingCurrent && (
+        <EditDialog
+          open
+          item={editableItem}
+          current={editingCurrent}
+          onClose={() => setEditingId(null)}
+          onSave={handleSave}
+          onReset={() =>
+            statuses.updateFields(editableItem.id, {
+              title: null,
+              notes: null,
+              loc: null,
+              due: null,
+              links: null,
+            })
+          }
+        />
+      )}
+
+      {deliver && deliverItem && (
+        <DeliveredDialog
+          open
+          phase={deliver.phase}
+          title={eff(deliverItem, deliverRow).title}
+          currentLink={deliverRow?.delivered_link ?? null}
+          onClose={() => setDeliver(null)}
+          onConfirm={() => statuses.setStatus(deliver.id, "delivered")}
+          onSaveLink={(link) =>
+            statuses.updateFields(deliver.id, {
+              status: "delivered",
+              delivered_link: link || null,
+            })
+          }
+        />
       )}
     </div>
   );

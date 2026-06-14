@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SCHEDULE, DELIVERABLES } from "@/lib/data";
-import { cn, splitDate, resolveLoc } from "@/lib/utils";
+import { cn, splitDate, resolveLoc, todayDate } from "@/lib/utils";
 import {
   TypeTag,
   BrollTag,
@@ -30,14 +30,26 @@ export function TodayTab() {
   const [query, setQuery] = useState("");
   const stripRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const didInit = useRef(false);
+  const shouldScroll = useRef(false);
 
-  // Center the selected chip in the strip on tap (never on initial load).
+  const selectDay = (date: string) => {
+    shouldScroll.current = true;
+    setSelected(date);
+  };
+
+  // On mount, jump to the REAL current day (client clock) if it's in range.
+  // Done in an effect (not initial state) to avoid SSR/hydration mismatch and
+  // WITHOUT triggering the strip auto-scroll.
   useEffect(() => {
-    if (!didInit.current) {
-      didInit.current = true;
-      return;
-    }
+    const today = todayDate(SCHEDULE);
+    if (today) setSelected(today);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Center the selected chip in the strip on tap (never on initial/programmatic load).
+  useEffect(() => {
+    if (!shouldScroll.current) return;
+    shouldScroll.current = false;
     const strip = stripRef.current;
     const chip = chipRefs.current[selected];
     if (strip && chip) {
@@ -80,7 +92,7 @@ export function TodayTab() {
                 chipRefs.current[d.date] = el;
               }}
               type="button"
-              onClick={() => setSelected(d.date)}
+              onClick={() => selectDay(d.date)}
               className={cn(
                 "flex min-w-[56px] shrink-0 flex-col items-center rounded-xl border px-3 py-2 transition-all",
                 on

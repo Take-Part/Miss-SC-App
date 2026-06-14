@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { SCHEDULE, MASTER } from "@/lib/data";
 import type { ScheduleItem, MasterItem } from "@/lib/data";
-import { cn, resolveLoc } from "@/lib/utils";
+import { cn, resolveLoc, todayDate } from "@/lib/utils";
 import {
   TypeTag,
   BrollTag,
@@ -37,9 +37,11 @@ export function ScheduleTab() {
   );
 
   // Reset expansion + filters when switching modes.
+  // Auto-expand the REAL current day (client clock); fall back to the busiest day.
   useEffect(() => {
     const src = mode === "shoots" ? SCHEDULE : MASTER;
-    setExpanded(new Set([maxItemsDate(src)]));
+    const today = todayDate(src);
+    setExpanded(new Set([today ?? maxItemsDate(src)]));
     setBrollOnly(false);
   }, [mode]);
 

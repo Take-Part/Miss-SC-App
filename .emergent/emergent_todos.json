@@ -1,34 +1,26 @@
 [
   {
-    "content": "Phase 1 POC: Supabase Realtime 2-client sync + upsert + persistence validated in isolation",
+    "content": "Verify TypeScript compilation of new components (tsc --noEmit)",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Convert frontend to Next.js + TS + Tailwind & data.js -> typed data.ts verbatim",
+    "content": "Probe Supabase schema to identify missing columns",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Build lib (utils, useStatuses hook) + shared components",
+    "content": "Create migration SQL file & deliver ALTER TABLE script to user",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Build 7 tabs (Today, Schedule, Deliverables w/ live status, Interviews, Delegates, Titleholders, Contacts+Map)",
+    "content": "Visually verify Edit dialog renders & works (screenshot)",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Wire CrewApp shell + page.tsx; all 7 tabs render, no console errors, realtime connected",
+    "content": "Visually verify Delivered confirm->link flow (screenshot)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: README (Supabase SQL + env vars) + .env.example + hide dev indicator",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 2/3: E2E testing via testing_agent — 100% pass (realtime sync, filters/sort, nav, mobile menu, data integrity)",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 3: Self-verified shot-time ordering + reset Supabase table to clean slate",
-    "status": "completed"
+    "content": "End-to-end test save/edit/delivery-link against Supabase (BLOCKED: needs user to run migration SQL)",
+    "status": "in_progress"
   }
 ]
