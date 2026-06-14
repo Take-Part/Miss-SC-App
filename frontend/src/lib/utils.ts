@@ -73,3 +73,15 @@ export function relativeTime(iso: string | null | undefined): string {
 export function telHref(phone: string): string {
   return "tel:" + phone.replace(/[^+0-9]/g, "");
 }
+
+/**
+ * Find the schedule day matching the real current date (client clock).
+ * Matches by month/day (e.g. today 6/14 -> the "Sun 6/14" entry).
+ * Returns null if today is outside the event range.
+ */
+export function todayDate(days: { date: string }[]): string | null {
+  const now = new Date();
+  const md = `${now.getMonth() + 1}/${now.getDate()}`;
+  const found = days.find((d) => splitDate(d.date).md === md);
+  return found ? found.date : null;
+}

@@ -8,11 +8,13 @@ export function StatusControl({
   id,
   row,
   onSet,
+  onRequestDelivered,
   disabled,
 }: {
   id: string;
   row: StatusRow | undefined;
   onSet: (id: string, status: StatusValue) => void;
+  onRequestDelivered?: (id: string) => void;
   disabled?: boolean;
 }) {
   const current: StatusValue = row?.status ?? "not_started";
@@ -34,7 +36,13 @@ export function StatusControl({
               type="button"
               disabled={disabled}
               aria-pressed={active}
-              onClick={() => onSet(id, s)}
+              onClick={() => {
+                if (s === "delivered" && onRequestDelivered) {
+                  onRequestDelivered(id);
+                } else {
+                  onSet(id, s);
+                }
+              }}
               className={cn(
                 "flex items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[11.5px] font-semibold transition-all duration-150",
                 active

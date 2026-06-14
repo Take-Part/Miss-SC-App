@@ -15,6 +15,16 @@ export interface UseStatuses {
   statusOf: (id: string) => StatusValue;
   rowOf: (id: string) => StatusRow | undefined;
   setStatus: (id: string, status: StatusValue) => void;
+  /** Upsert any subset of editable columns (status + content overrides). */
+  updateFields: (
+    id: string,
+    partial: Partial<
+      Pick<
+        StatusRow,
+        "status" | "title" | "notes" | "loc" | "due" | "links" | "delivered_link"
+      >
+    >
+  ) => void;
   configured: boolean;
   connected: boolean;
   /** initial load finished (or skipped when unconfigured). */
@@ -127,14 +137,27 @@ export function useStatuses(): UseStatuses {
   );
   const rowOf = useCallback((id: string) => map[id], [map]);
 
-  const setStatus = useCallback(
-    (id: string, status: StatusValue) => {
+  const updateFields = useCallback(
+    (
+      id: string,
+      partial: Partial<
+        Pick<
+          StatusRow,
+          "status" | "title" | "notes" | "loc" | "due" | "links" | "delivered_link"
+        >
+      >
+    ) => {
       const prev = mapRef.current[id];
+      const now = new Date().toISOString();
+      const by = initials || null;
+      const base: StatusRow =
+        prev ?? { id, status: DEFAULT_STATUS, updated_at: now, updated_by: by };
       const optimistic: StatusRow = {
+        ...base,
+        ...partial,
         id,
-        status,
-        updated_at: new Date().toISOString(),
-        updated_by: initials || null,
+        updated_at: now,
+        updated_by: by,
       };
       // optimistic update — instant UI feedback
       setMap((p) => ({ ...p, [id]: optimistic }));
@@ -143,12 +166,7 @@ export function useStatuses(): UseStatuses {
       const sb = supabase; // non-null reference for the async .then below
       sb
         .from(STATUS_TABLE)
-        .upsert({
-          id,
-          status,
-          updated_by: initials || null,
-          updated_at: optimistic.updated_at,
-        })
+        .upsert({ id, ...partial, updated_at: now, updated_by: by })
         .then(({ error }) => {
           if (error) {
             setError("Couldn’t save — check connection.");
@@ -166,11 +184,17 @@ export function useStatuses(): UseStatuses {
     [initials]
   );
 
+  const setStatus = useCallback(
+    (id: string, status: StatusValue) => updateFields(id, { status }),
+    [updateFields]
+  );
+
   return {
     map,
     statusOf,
     rowOf,
     setStatus,
+    updateFields,
     configured: isSupabaseConfigured,
     connected,
     loaded,

@@ -55,11 +55,23 @@ export const STATUS_META: Record<StatusValue, StatusMeta> = {
   },
 };
 
+export interface StatusLink {
+  label: string;
+  url: string;
+}
+
 export interface StatusRow {
   id: string;
   status: StatusValue;
   updated_at: string;
   updated_by: string | null;
+  // ---- editable content overrides (null/absent => fall back to data.ts) ----
+  title?: string | null;
+  notes?: string | null;
+  loc?: string | null;
+  due?: string | null;
+  links?: StatusLink[] | null;
+  delivered_link?: string | null;
 }
 
 export function isValidStatus(v: unknown): v is StatusValue {

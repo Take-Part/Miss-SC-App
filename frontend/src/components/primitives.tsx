@@ -1,5 +1,6 @@
 "use client";
 
+import { Clapperboard, ArrowUpRight } from "lucide-react";
 import { cn, mapsUrl, resolveLoc, isHardDue, isTbdDue } from "@/lib/utils";
 import type { RefLink } from "@/lib/data";
 
@@ -81,6 +82,31 @@ export function DueChip({
       <span className="font-semibold not-italic">{prefix}</span>
       {due}
     </span>
+  );
+}
+
+/* ---------- Cross-link to a deliverable (Today / Schedule -> Deliverables) ---------- */
+
+export function DeliverableLink({
+  label,
+  onClick,
+  testid,
+}: {
+  label: string;
+  onClick: () => void;
+  testid?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testid}
+      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-sash/25 bg-sash/8 px-2.5 py-1 text-[12px] font-semibold text-sash transition-colors hover:bg-sash/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sash/35 active:bg-sash/20"
+    >
+      <Clapperboard size={13} className="shrink-0" aria-hidden />
+      <span className="truncate">{label}</span>
+      <ArrowUpRight size={13} className="shrink-0" aria-hidden />
+    </button>
   );
 }
 

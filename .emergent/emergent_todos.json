@@ -1,34 +1,34 @@
 [
   {
-    "content": "Phase 1 POC: Supabase Realtime 2-client sync + upsert + persistence validated in isolation",
+    "content": "Add findDeliverableMeta() lookup helper to data.ts (searches DELIVERABLES + SOCIALS)",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Convert frontend to Next.js + TS + Tailwind & data.js -> typed data.ts verbatim",
+    "content": "Add reusable DeliverableLink button to primitives.tsx",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Build lib (utils, useStatuses hook) + shared components",
+    "content": "Lift focus/navigation state in CrewApp.tsx (openDeliverable)",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Build 7 tabs (Today, Schedule, Deliverables w/ live status, Interviews, Delegates, Titleholders, Contacts+Map)",
+    "content": "DeliverablesTab: scroll-to + highlight target card via focusId",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Wire CrewApp shell + page.tsx; all 7 tabs render, no console errors, realtime connected",
+    "content": "TodayTab: add 'View in Deliverables' buttons on items with deliv",
     "status": "completed"
   },
   {
-    "content": "Phase 3: README (Supabase SQL + env vars) + .env.example + hide dev indicator",
+    "content": "ScheduleTab (Our shoots): add 'View in Deliverables' buttons",
     "status": "completed"
   },
   {
-    "content": "Phase 2/3: E2E testing via testing_agent — 100% pass (realtime sync, filters/sort, nav, mobile menu, data integrity)",
+    "content": "Add highlight keyframe to globals.css",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Self-verified shot-time ordering + reset Supabase table to clean slate",
+    "content": "tsc --noEmit + visual verification of navigation flow",
     "status": "completed"
   }
 ]

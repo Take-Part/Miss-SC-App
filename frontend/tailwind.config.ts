@@ -49,6 +49,10 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(-8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-up": {
+          "0%": { opacity: "0", transform: "translateY(14px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
@@ -56,6 +60,7 @@ const config: Config = {
       animation: {
         "fade-in": "fade-in 0.25s ease-out",
         "slide-down": "slide-down 0.2s ease-out",
+        "slide-up": "slide-up 0.22s ease-out",
       },
     },
   },
