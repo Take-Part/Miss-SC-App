@@ -1,34 +1,30 @@
 [
   {
-    "content": "Add findDeliverableMeta() lookup helper to data.ts (searches DELIVERABLES + SOCIALS)",
+    "content": "Phase A: Extend StatusRow type with hidden/is_custom/kind/must/film/film_days/due_day",
     "status": "completed"
   },
   {
-    "content": "Add reusable DeliverableLink button to primitives.tsx",
+    "content": "Phase A: useStatuses — addDeliverable(), deleteRow(), extend updateFields fields",
     "status": "completed"
   },
   {
-    "content": "Lift focus/navigation state in CrewApp.tsx (openDeliverable)",
+    "content": "Phase A: New dialogs — AddDeliverableDialog, ConfirmDialog, HiddenDialog; EditDialog allowReset",
     "status": "completed"
   },
   {
-    "content": "DeliverablesTab: scroll-to + highlight target card via focusId",
+    "content": "Phase A: DeliverablesTab — merge custom+built-in, hide filtering, header actions, delete button, restore panel",
     "status": "completed"
   },
   {
-    "content": "TodayTab: add 'View in Deliverables' buttons on items with deliv",
+    "content": "Phase A: Write Supabase migration SQL (new columns) for user to run",
     "status": "completed"
   },
   {
-    "content": "ScheduleTab (Our shoots): add 'View in Deliverables' buttons",
-    "status": "completed"
+    "content": "Phase A: tsc + UI verification (DONE). Functional add/delete test pending user running migration 0003 SQL",
+    "status": "in_progress"
   },
   {
-    "content": "Add highlight keyframe to globals.css",
-    "status": "completed"
-  },
-  {
-    "content": "tsc --noEmit + visual verification of navigation flow",
-    "status": "completed"
+    "content": "Phase B: Schedule add/edit/delete items + days (both schedules)",
+    "status": "pending"
   }
 ]

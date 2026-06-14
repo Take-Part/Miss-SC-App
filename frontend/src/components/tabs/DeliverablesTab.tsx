@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Pencil, ExternalLink, Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pencil, ExternalLink, Plus, Trash2, Archive } from "lucide-react";
 import { DELIVERABLES, SOCIALS } from "@/lib/data";
 import type { RefLink } from "@/lib/data";
 import { cn, dowIndex, isHardDue, isTbdDue, resolveLoc } from "@/lib/utils";
@@ -21,9 +21,14 @@ import { StatusControl } from "../StatusControl";
 import {
   EditDialog,
   DeliveredDialog,
+  AddDeliverableDialog,
+  ConfirmDialog,
+  HiddenDialog,
   type EditableItem,
   type CurrentValues,
   type EditPartial,
+  type NewDeliverableInput,
+  type HiddenEntry,
 } from "../DeliverableDialogs";
 
 type DayMode = "filming" | "due";
@@ -78,6 +83,26 @@ const UNIFIED: Unified[] = [
   })),
 ];
 
+/** Build a Unified item from a custom (in-app created) Supabase row. */
+function rowToUnified(row: StatusRow): Unified {
+  const kind: "video" | "social" = row.kind === "social" ? "social" : "video";
+  const group: Group = kind === "video" ? "video" : row.must ? "must" : "nice";
+  return {
+    id: row.id,
+    kind,
+    group,
+    title: row.title ?? "Untitled",
+    filmDays: Array.isArray(row.film_days) ? row.film_days : [],
+    dueDay: row.due_day ?? null,
+    filmLabel: row.film ?? "—",
+    loc: row.loc ?? null,
+    startMin: null,
+    due: row.due ?? "TBD",
+    notes: row.notes ?? "",
+    links: (row.links ?? undefined) as RefLink[] | undefined,
+  };
+}
+
 /** Merge a static item with any saved overrides. */
 function eff(item: Unified, row?: StatusRow) {
   return {
@@ -131,6 +156,7 @@ function DeliverableCard({
   onEdit,
   onDelivered,
   onEditLink,
+  onDelete,
   innerRef,
   highlighted,
 }: {
@@ -139,6 +165,7 @@ function DeliverableCard({
   onEdit: (id: string) => void;
   onDelivered: (id: string) => void;
   onEditLink: (id: string) => void;
+  onDelete: (id: string) => void;
   innerRef?: (el: HTMLDivElement | null) => void;
   highlighted?: boolean;
 }) {
@@ -184,14 +211,26 @@ function DeliverableCard({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => onEdit(item.id)}
-          aria-label="Edit deliverable"
-          className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
-        >
-          <Pencil size={15} />
-        </button>
+        <div className="-mr-1 -mt-1 flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={() => onEdit(item.id)}
+            aria-label="Edit deliverable"
+            data-testid={`edit-deliverable-${item.id}`}
+            className="grid h-8 w-8 place-items-center rounded-lg text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
+          >
+            <Pencil size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(item.id)}
+            aria-label="Delete deliverable"
+            data-testid={`delete-deliverable-${item.id}`}
+            className="grid h-8 w-8 place-items-center rounded-lg text-ink/40 transition-colors hover:bg-deadline/8 hover:text-deadline"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       </div>
 
       <h3 className="mt-2 font-serif text-[16px] font-semibold leading-snug text-ink">
@@ -285,6 +324,32 @@ export function DeliverablesTab({
     id: string;
     phase: "confirm" | "link";
   } | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+
+  // Merge built-in (data.ts) items with custom (in-app) ones, and split off
+  // anything that's been hidden (soft-deleted).
+  const { liveItems, hiddenItems } = useMemo(() => {
+    const rows = Object.values(statuses.map);
+    const customs = rows.filter((r) => r.is_custom).map(rowToUnified);
+    const hiddenSet = new Set(rows.filter((r) => r.hidden).map((r) => r.id));
+    const everything = [...UNIFIED, ...customs];
+    return {
+      liveItems: everything.filter((i) => !hiddenSet.has(i.id)),
+      hiddenItems: everything.filter((i) => hiddenSet.has(i.id)),
+    };
+  }, [statuses.map]);
+
+  const hiddenEntries: HiddenEntry[] = hiddenItems.map((i) => ({
+    id: i.id,
+    title: eff(i, statuses.rowOf(i.id)).title,
+    kind: i.kind,
+    isCustom: !!statuses.rowOf(i.id)?.is_custom,
+  }));
 
   // Cross-navigation: scroll to + briefly highlight a deliverable that was
   // opened from the Today / Schedule tabs.
@@ -330,7 +395,7 @@ export function DeliverablesTab({
   // Day chips (driven by type filter + mode; independent of text query).
   const dayChips = (() => {
     const counts = new Map<string, number>();
-    for (const i of UNIFIED) {
+    for (const i of liveItems) {
       if (!byType(i)) continue;
       if (dayMode === "filming") {
         for (const d of i.filmDays) counts.set(d, (counts.get(d) ?? 0) + 1);
@@ -346,7 +411,8 @@ export function DeliverablesTab({
   // Flat (single day) vs grouped (All).
   let flat: Unified[] | null = null;
   if (selectedDay) {
-    flat = UNIFIED.filter(byType)
+    flat = liveItems
+      .filter(byType)
       .filter(byQuery)
       .filter((i) =>
         dayMode === "filming"
@@ -362,7 +428,7 @@ export function DeliverablesTab({
     }
   }
 
-  const visible = UNIFIED.filter(byType).filter(byQuery);
+  const visible = liveItems.filter(byType).filter(byQuery);
   const grouped = {
     video: visible.filter((i) => i.group === "video"),
     must: visible.filter((i) => i.group === "must"),
@@ -374,6 +440,13 @@ export function DeliverablesTab({
     onEdit: (id: string) => setEditingId(id),
     onDelivered: (id: string) => setDeliver({ id, phase: "confirm" as const }),
     onEditLink: (id: string) => setDeliver({ id, phase: "link" as const }),
+    onDelete: (id: string) => {
+      const t = eff(
+        liveItems.find((i) => i.id === id) ?? ({ title: "this item" } as Unified),
+        statuses.rowOf(id)
+      ).title;
+      setConfirmDelete({ id, title: t });
+    },
   };
 
   const renderCard = (item: Unified) => (
@@ -390,8 +463,11 @@ export function DeliverablesTab({
 
   // Dialog data
   const editingItem = editingId
-    ? UNIFIED.find((i) => i.id === editingId) ?? null
+    ? liveItems.find((i) => i.id === editingId) ?? null
     : null;
+  const editingIsCustom = editingItem
+    ? !!statuses.rowOf(editingItem.id)?.is_custom
+    : false;
   const editableItem: EditableItem | null = editingItem
     ? {
         id: editingItem.id,
@@ -418,6 +494,17 @@ export function DeliverablesTab({
 
   const handleSave = (partial: EditPartial) => {
     if (!editingItem) return;
+    // Custom (in-app) items store literal values — no "original" to collapse to.
+    if (editingIsCustom) {
+      statuses.updateFields(editingItem.id, {
+        title: partial.title,
+        notes: partial.notes,
+        loc: partial.loc,
+        due: partial.due,
+        links: partial.links,
+      });
+      return;
+    }
     const origLocName = resolveLoc(editingItem.loc)?.name ?? "";
     // Collapse fields that match the original back to null (no override).
     const title =
@@ -442,7 +529,7 @@ export function DeliverablesTab({
   };
 
   const deliverItem = deliver
-    ? UNIFIED.find((i) => i.id === deliver.id) ?? null
+    ? liveItems.find((i) => i.id === deliver.id) ?? null
     : null;
   const deliverRow = deliver ? statuses.rowOf(deliver.id) : undefined;
 
@@ -489,6 +576,28 @@ export function DeliverablesTab({
             className="w-16 rounded-md border border-line bg-card px-2 py-1 text-center text-[12px] font-semibold uppercase text-ink outline-none focus:border-crown/50"
           />
         </label>
+      </div>
+
+      {/* Manage actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          data-testid="add-deliverable-btn"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3.5 py-2 text-[13px] font-bold text-paper transition-colors hover:bg-ink/90"
+        >
+          <Plus size={16} /> Add deliverable
+        </button>
+        {hiddenEntries.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setHiddenOpen(true)}
+            data-testid="hidden-deliverables-btn"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[13px] font-semibold text-ink/60 transition-colors hover:bg-ink/5"
+          >
+            <Archive size={15} /> Hidden ({hiddenEntries.length})
+          </button>
+        )}
       </div>
 
       {statuses.error && (
@@ -594,6 +703,7 @@ export function DeliverablesTab({
           open
           item={editableItem}
           current={editingCurrent}
+          allowReset={!editingIsCustom}
           onClose={() => setEditingId(null)}
           onSave={handleSave}
           onReset={() =>
@@ -624,6 +734,42 @@ export function DeliverablesTab({
           }
         />
       )}
+
+      <AddDeliverableDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreate={(payload: NewDeliverableInput) =>
+          statuses.addDeliverable(payload)
+        }
+      />
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete this deliverable?"
+        message={
+          <>
+            <span className="font-semibold text-ink">
+              {confirmDelete?.title}
+            </span>{" "}
+            will be hidden for the whole crew. You can bring it back any time from{" "}
+            <span className="font-semibold text-ink">Hidden</span>.
+          </>
+        }
+        confirmLabel="Delete"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (confirmDelete)
+            statuses.updateFields(confirmDelete.id, { hidden: true });
+        }}
+      />
+
+      <HiddenDialog
+        open={hiddenOpen}
+        items={hiddenEntries}
+        onClose={() => setHiddenOpen(false)}
+        onRestore={(id) => statuses.updateFields(id, { hidden: false })}
+        onPurge={(id) => statuses.deleteRow(id)}
+      />
     </div>
   );
 }
