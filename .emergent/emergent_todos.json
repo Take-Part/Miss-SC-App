@@ -1,30 +1,34 @@
 [
   {
-    "content": "Verify TypeScript compilation of new components (tsc --noEmit)",
+    "content": "Add findDeliverableMeta() lookup helper to data.ts (searches DELIVERABLES + SOCIALS)",
     "status": "completed"
   },
   {
-    "content": "Probe Supabase schema to identify missing columns",
+    "content": "Add reusable DeliverableLink button to primitives.tsx",
     "status": "completed"
   },
   {
-    "content": "Create migration SQL file & deliver ALTER TABLE script to user",
+    "content": "Lift focus/navigation state in CrewApp.tsx (openDeliverable)",
     "status": "completed"
   },
   {
-    "content": "Visually verify Edit dialog renders & works (screenshot)",
+    "content": "DeliverablesTab: scroll-to + highlight target card via focusId",
     "status": "completed"
   },
   {
-    "content": "Visually verify Delivered confirm->link flow (screenshot)",
+    "content": "TodayTab: add 'View in Deliverables' buttons on items with deliv",
     "status": "completed"
   },
   {
-    "content": "End-to-end test save/edit/delivery-link against Supabase (after migration)",
+    "content": "ScheduleTab (Our shoots): add 'View in Deliverables' buttons",
     "status": "completed"
   },
   {
-    "content": "Increase footer button padding on Modal per user request",
+    "content": "Add highlight keyframe to globals.css",
+    "status": "completed"
+  },
+  {
+    "content": "tsc --noEmit + visual verification of navigation flow",
     "status": "completed"
   }
 ]

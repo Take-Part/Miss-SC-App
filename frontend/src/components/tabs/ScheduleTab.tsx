@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { SCHEDULE, MASTER } from "@/lib/data";
+import { SCHEDULE, MASTER, findDeliverableMeta } from "@/lib/data";
 import type { ScheduleItem, MasterItem } from "@/lib/data";
 import { cn, resolveLoc, todayDate } from "@/lib/utils";
 import {
@@ -9,6 +9,7 @@ import {
   BrollTag,
   StarTag,
   MapLink,
+  DeliverableLink,
   SearchBox,
   PillToggle,
   EmptyState,
@@ -28,7 +29,11 @@ function maxItemsDate(source: { date: string; items: unknown[] }[]): string {
   return best;
 }
 
-export function ScheduleTab() {
+export function ScheduleTab({
+  onOpenDeliverable,
+}: {
+  onOpenDeliverable: (id: string) => void;
+}) {
   const [mode, setMode] = useState<Mode>("shoots");
   const [brollOnly, setBrollOnly] = useState(false);
   const [query, setQuery] = useState("");
@@ -240,6 +245,27 @@ export function ScheduleTab() {
                               <p className="mt-0.5 text-[12px] leading-snug text-ink/55">
                                 {it.crew}
                               </p>
+                            )}
+                            {it.deliv && it.deliv.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {it.deliv.map((id) => {
+                                  const meta = findDeliverableMeta(id);
+                                  if (!meta) return null;
+                                  const multi = (it.deliv as string[]).length > 1;
+                                  return (
+                                    <DeliverableLink
+                                      key={id}
+                                      label={
+                                        multi
+                                          ? meta.title
+                                          : "View in Deliverables"
+                                      }
+                                      onClick={() => onOpenDeliverable(id)}
+                                      testid={`schedule-view-deliverable-${id}`}
+                                    />
+                                  );
+                                })}
+                              </div>
                             )}
                           </div>
                         ))

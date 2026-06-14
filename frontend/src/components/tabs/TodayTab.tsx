@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SCHEDULE, DELIVERABLES } from "@/lib/data";
+import { SCHEDULE } from "@/lib/data";
+import { findDeliverableMeta } from "@/lib/data";
 import { cn, splitDate, resolveLoc, todayDate } from "@/lib/utils";
 import {
   TypeTag,
   BrollTag,
   MapLink,
   DueChip,
+  DeliverableLink,
   SearchBox,
   EmptyState,
 } from "../primitives";
@@ -21,11 +23,11 @@ const ACCENT: Record<string, string> = {
   logistics: "border-l-line",
 };
 
-function delivById(id: string) {
-  return DELIVERABLES.find((d) => d.id === id);
-}
-
-export function TodayTab() {
+export function TodayTab({
+  onOpenDeliverable,
+}: {
+  onOpenDeliverable: (id: string) => void;
+}) {
   const [selected, setSelected] = useState<string>(DEFAULT_DAY);
   const [query, setQuery] = useState("");
   const stripRef = useRef<HTMLDivElement>(null);
@@ -173,12 +175,24 @@ export function TodayTab() {
                 </p>
               )}
               {it.deliv && it.deliv.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
                   {it.deliv.map((id) => {
-                    const d = delivById(id);
-                    return d ? (
-                      <DueChip key={id} due={d.due} />
-                    ) : null;
+                    const meta = findDeliverableMeta(id);
+                    if (!meta) return null;
+                    const multi = (it.deliv as string[]).length > 1;
+                    return (
+                      <div
+                        key={id}
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        <DueChip due={meta.due} />
+                        <DeliverableLink
+                          label={multi ? meta.title : "View in Deliverables"}
+                          onClick={() => onOpenDeliverable(id)}
+                          testid={`today-view-deliverable-${id}`}
+                        />
+                      </div>
+                    );
                   })}
                 </div>
               )}

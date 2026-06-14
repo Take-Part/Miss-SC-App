@@ -8,6 +8,7 @@
   2. **Master Schedule defaults to the actual current date** (in the context of the 2026 event).
   3. **Editable deliverable details** (title, description, location, due text, example links) stored in Supabase and shared via Realtime.
   4. **Delivered flow**: “Delivered” → confirm “Are you sure?” → if yes, prompt for an editable/clickable **delivery link**.
+  5. **Cross-navigation**: from **Today** and **Schedule (Our shoots)**, each schedule item that maps to a deliverable shows a **“View in Deliverables”** (or **deliverable title**) button that jumps directly to the matching deliverable card and briefly highlights it.
 - Ensure **graceful degradation** when Supabase is missing/unreachable: static content still works; no white-screen.
 - Keep `/app/backend` ignored (not deployed). App is **Next.js + Supabase direct**.
 - Remain **Vercel build-safe** under **TypeScript strict** (must pass `npx tsc --noEmit`).
@@ -54,6 +55,7 @@
 3. As a crew member, I can find what I need fast using search/filtering without changing the underlying data.
 4. As a crew member, I can update a deliverable/social status and see teammates’ updates live.
 5. As a crew member, I can call key contacts and open map links with one tap.
+6. As a crew member, while looking at Today/Schedule, I can tap **View in Deliverables** to jump directly to that deliverable’s details/status.
 
 **Steps**
 - Convert CRA frontend to Next.js App Router + TS + Tailwind:
@@ -72,31 +74,47 @@
   - Missing row = `not_started`.
   - 4-state segmented control + optimistic writes + last-write-wins.
   - Relative updated time + error banner.
+- Deliverable editing + delivery links:
+  - Edit modal supports title/notes/location/due/example-links overrides.
+  - Delivered flow prompts confirmation, then captures an editable/clickable delivery link.
+- Cross-navigation (Today/Schedule → Deliverables):
+  - Schedule items that include `deliv: string[]` show a button that jumps to the deliverable card in Deliverables.
+  - When opened via jump, DeliverablesTab scrolls to the card and applies a short highlight pulse.
 
 **Updates implemented (requested during session):**
 - ✅ Jewel-tone navigation redesign completed.
 - ✅ Schedule default-date bug fixed so Master Schedule defaults to the correct current date within the 2026 event window.
-- ✅ Frontend feature work completed for:
-  - Editable deliverable details
-  - Delivered confirm → delivery link capture flow
+- ✅ Editable deliverable details + Delivered confirmation/link flow implemented.
+- ✅ Cross-navigation implemented:
+  - Today: show **Due** + **View in Deliverables** links for items that reference deliverables.
+  - Schedule (Our shoots): same links.
+  - Deliverables: auto-scroll to the target card and highlight it.
 
 **Frontend implementation details (important):**
-- The code uses these Supabase column names (not `*_override`):
+- Supabase column names used by the app:
   - `title` (text)
   - `notes` (text)
   - `loc` (text)
   - `due` (text)
   - `links` (jsonb)
   - `delivered_link` (text)
+- Cross-navigation implementation details:
+  - `data.ts`: additive helper `findDeliverableMeta(id)` resolves IDs across **DELIVERABLES** and **SOCIALS**.
+  - `primitives.tsx`: new `<DeliverableLink />` UI primitive.
+  - `CrewApp.tsx`: lifted state + `openDeliverable(id)` changes active tab and sets focus.
+  - `DeliverablesTab.tsx`: `focusId` triggers scroll + highlight (`.card-highlight`) and then clears focus.
 
 **Phase 2 testing (end-to-end)**
 - ✅ `npx tsc --noEmit` passes (Vercel build-safe).
-- ✅ Visual verification complete via screenshots:
+- ✅ Supabase migration applied; edits + links persist.
+- ✅ Visual verification complete via screenshots + DOM checks:
   - Deliverables list rendering
   - Edit dialog rendering (all fields)
   - Delivered confirmation dialog
   - Delivery link input dialog
-- ⛔ Backend persistence test for edits + delivery link is blocked until database migration is applied.
+  - Today “View in Deliverables” buttons
+  - Schedule (Our shoots) “View in Deliverables” buttons
+  - Clicking a link navigates and highlights the correct deliverable card.
 
 ---
 
@@ -127,17 +145,13 @@
 ---
 
 ## 3) Next Actions
-1. **User runs Supabase migration SQL** to add missing columns to `public.deliverable_status`:
-   - File created: `/app/frontend/supabase/migrations/0002_deliverable_overrides.sql`
-   - Missing columns confirmed by probe:
-     - `title`, `notes`, `loc`, `due`, `links` (jsonb), `delivered_link`
-2. After user confirms migration ran successfully:
-   - Run an end-to-end test:
-     - Edit title/notes/loc/due/links → verify save persists after reload
-     - Mark Delivered → confirm → add delivery link → verify clickable link renders on card
-     - Verify Realtime sync in a second browser/device
-3. User deploys to Vercel (env vars only). Recommended pre-deploy check:
-   - `cd /app/frontend && npx tsc --noEmit` (already verified) and `npm run build` if desired.
+1. **Pre-deploy check (recommended):**
+   - `cd /app/frontend && npx tsc --noEmit` (passes)
+   - `cd /app/frontend && npm run build` (optional but recommended)
+2. **Vercel deploy:** user deploys with only env vars.
+3. **Optional follow-ups (nice-to-have):**
+   - Add similar cross-navigation in other contexts if future data adds deliverable IDs (e.g., Master schedule if `deliv` is ever added).
+   - Consider adding a small “Back to Today/Schedule” affordance after jumping (not required).
 
 ---
 
@@ -146,6 +160,7 @@
 - **Realtime:** changing any deliverable/social status in Browser A updates Browser B within ~1s (no refresh).
 - **Persistence:** statuses + edits + delivery links remain after reload (stored in Supabase).
 - **Delivered flow:** Delivered → confirm → link capture works; link is editable and clickable.
+- **Cross-navigation:** Today/Schedule “View in Deliverables” buttons jump to the correct deliverable/social card and highlight it.
 - **Graceful degradation:** without Supabase or when unreachable, app still fully works for static content; no crashes.
-- **UX requirements met:** jewel-tone nav, schedule date defaulting, deliverable editability, and delivered-link flow.
+- **UX requirements met:** jewel-tone nav, schedule date defaulting, deliverable editability, delivered-link flow, and cross-navigation.
 - **Deploy-ready:** Vercel build passes under TS strict; deploy works by setting env vars only; no secrets in code.

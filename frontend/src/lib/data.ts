@@ -543,3 +543,26 @@ export const INTERVIEWS: Interviews = {
   ]},
 };
 
+
+/* ----------------------------------------------------------------------------
+ * Cross-navigation helper (additive — does NOT modify any data values).
+ * Resolves a deliverable/social id (as referenced by ScheduleItem.deliv) to a
+ * lightweight descriptor used by the Today / Schedule "View in Deliverables"
+ * links. Searches both DELIVERABLES (videos) and SOCIALS.
+ * -------------------------------------------------------------------------- */
+export interface DeliverableMeta {
+  id: string;
+  title: string;
+  due: string;
+  kind: "video" | "social";
+}
+
+export function findDeliverableMeta(id: string): DeliverableMeta | undefined {
+  const video = DELIVERABLES.find((d) => d.id === id);
+  if (video)
+    return { id: video.id, title: video.title, due: video.due, kind: "video" };
+  const social = SOCIALS.find((s) => s.id === id);
+  if (social)
+    return { id: social.id, title: social.title, due: social.due, kind: "social" };
+  return undefined;
+}

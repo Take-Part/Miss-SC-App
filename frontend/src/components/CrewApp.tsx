@@ -17,15 +17,30 @@ export function CrewApp() {
   const [active, setActive] = useState<TabKey>("today");
   // Created once at the top so the realtime subscription stays alive across tabs.
   const statuses = useStatuses();
+  // Cross-navigation: jump straight to a deliverable from Today / Schedule.
+  const [focusDeliverable, setFocusDeliverable] = useState<string | null>(null);
+
+  const openDeliverable = (id: string) => {
+    setFocusDeliverable(id);
+    setActive("deliverables");
+  };
 
   return (
     <div className="min-h-screen pb-[max(env(safe-area-inset-bottom),0px)]">
       <Masthead />
       <Nav active={active} onChange={setActive} />
       <main className="mx-auto max-w-3xl px-4 py-5">
-        {active === "today" && <TodayTab />}
-        {active === "schedule" && <ScheduleTab />}
-        {active === "deliverables" && <DeliverablesTab statuses={statuses} />}
+        {active === "today" && <TodayTab onOpenDeliverable={openDeliverable} />}
+        {active === "schedule" && (
+          <ScheduleTab onOpenDeliverable={openDeliverable} />
+        )}
+        {active === "deliverables" && (
+          <DeliverablesTab
+            statuses={statuses}
+            focusId={focusDeliverable}
+            onFocusHandled={() => setFocusDeliverable(null)}
+          />
+        )}
         {active === "interviews" && <InterviewsTab />}
         {active === "delegates" && <DelegatesTab />}
         {active === "titleholders" && <TitleholdersTab />}

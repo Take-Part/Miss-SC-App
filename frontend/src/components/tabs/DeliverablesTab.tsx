@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pencil, ExternalLink, Plus } from "lucide-react";
 import { DELIVERABLES, SOCIALS } from "@/lib/data";
 import type { RefLink } from "@/lib/data";
@@ -131,12 +131,16 @@ function DeliverableCard({
   onEdit,
   onDelivered,
   onEditLink,
+  innerRef,
+  highlighted,
 }: {
   item: Unified;
   statuses: UseStatuses;
   onEdit: (id: string) => void;
   onDelivered: (id: string) => void;
   onEditLink: (id: string) => void;
+  innerRef?: (el: HTMLDivElement | null) => void;
+  highlighted?: boolean;
 }) {
   const row = statuses.rowOf(item.id);
   const e = eff(item, row);
@@ -151,7 +155,14 @@ function DeliverableCard({
     JSON.stringify(e.links ?? []) !== JSON.stringify(item.links ?? []);
 
   return (
-    <div className="rounded-2xl border border-line bg-card p-4 shadow-soft">
+    <div
+      ref={innerRef}
+      data-testid={`deliverable-card-${item.id}`}
+      className={cn(
+        "scroll-mt-24 rounded-2xl border border-line bg-card p-4 shadow-soft",
+        highlighted && "card-highlight"
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <VideoSocialTag kind={item.kind} />
@@ -255,7 +266,15 @@ function DeliverableCard({
   );
 }
 
-export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
+export function DeliverablesTab({
+  statuses,
+  focusId,
+  onFocusHandled,
+}: {
+  statuses: UseStatuses;
+  focusId?: string | null;
+  onFocusHandled?: () => void;
+}) {
   const [dayMode, setDayMode] = useState<DayMode>("filming");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -266,6 +285,30 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
     id: string;
     phase: "confirm" | "link";
   } | null>(null);
+
+  // Cross-navigation: scroll to + briefly highlight a deliverable that was
+  // opened from the Today / Schedule tabs.
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusId) return;
+    // Make sure the target is visible in the default (grouped) view.
+    setSelectedDay(null);
+    setTypeFilter("all");
+    setQuery("");
+    const raf = requestAnimationFrame(() => {
+      const el = cardRefs.current[focusId];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightId(focusId);
+        window.setTimeout(() => setHighlightId(null), 2200);
+      }
+      onFocusHandled?.();
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
 
   // Switching filming/due changes the day axis — clear the day selection.
   useEffect(() => {
@@ -332,6 +375,18 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
     onDelivered: (id: string) => setDeliver({ id, phase: "confirm" as const }),
     onEditLink: (id: string) => setDeliver({ id, phase: "link" as const }),
   };
+
+  const renderCard = (item: Unified) => (
+    <DeliverableCard
+      key={item.id}
+      item={item}
+      innerRef={(el) => {
+        cardRefs.current[item.id] = el;
+      }}
+      highlighted={highlightId === item.id}
+      {...cardProps}
+    />
+  );
 
   // Dialog data
   const editingItem = editingId
@@ -496,9 +551,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
           <EmptyState>No deliverables for this day.</EmptyState>
         ) : (
           <div className="space-y-3">
-            {flat.map((item) => (
-              <DeliverableCard key={item.id} item={item} {...cardProps} />
-            ))}
+            {flat.map((item) => renderCard(item))}
           </div>
         )
       ) : (
@@ -508,9 +561,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
               <SectionTitle count={grouped.video.length}>
                 Production Videos
               </SectionTitle>
-              {grouped.video.map((item) => (
-                <DeliverableCard key={item.id} item={item} {...cardProps} />
-              ))}
+              {grouped.video.map((item) => renderCard(item))}
             </section>
           )}
           {grouped.must.length > 0 && (
@@ -518,9 +569,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
               <SectionTitle count={grouped.must.length}>
                 Social — Must-Have
               </SectionTitle>
-              {grouped.must.map((item) => (
-                <DeliverableCard key={item.id} item={item} {...cardProps} />
-              ))}
+              {grouped.must.map((item) => renderCard(item))}
             </section>
           )}
           {grouped.nice.length > 0 && (
@@ -528,9 +577,7 @@ export function DeliverablesTab({ statuses }: { statuses: UseStatuses }) {
               <SectionTitle count={grouped.nice.length}>
                 Social — Nice-to-Have
               </SectionTitle>
-              {grouped.nice.map((item) => (
-                <DeliverableCard key={item.id} item={item} {...cardProps} />
-              ))}
+              {grouped.nice.map((item) => renderCard(item))}
             </section>
           )}
           {grouped.video.length === 0 &&
