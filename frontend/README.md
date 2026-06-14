@@ -1,70 +1,84 @@
-# Getting Started with Create React App
+# Miss South Carolina CY26 — Take Part Co Crew App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A mobile-first, on-site run-of-show app for the Take Part Co video crew working
+Miss South Carolina CY26 (Competition Week, June 14–21, Columbia SC).
 
-## Available Scripts
+All factual content (schedules, deliverables, interviews, delegates, contacts,
+titleholders, locations) is loaded **verbatim** from `src/lib/data.ts` — the
+single source of truth. The only live/shared piece is the **production status**
+of each deliverable & social cut, backed by **Supabase (Postgres + Realtime)**.
 
-In the project directory, you can run:
+## Stack
 
-### `npm start`
+- **Next.js (App Router) + TypeScript**
+- **Tailwind CSS**
+- **Supabase** (`@supabase/supabase-js`) for the shared 4-state status + Realtime
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Environment variables
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Create `.env.local` (locally) or set these in Vercel → Project → Settings →
+Environment Variables:
 
-### `npm test`
+```
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR-ANON-OR-PUBLISHABLE-KEY
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+The app **degrades gracefully** without these: every static tab still works; only
+the live status control goes read-only/offline.
 
-### `npm run build`
+## Supabase setup (run once in the SQL Editor)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```sql
+create table if not exists public.deliverable_status (
+  id text primary key,            -- matches the deliverable/social id from data.ts
+  status text not null default 'not_started'
+    check (status in ('not_started','filming','editing','delivered')),
+  updated_at timestamptz not null default now(),
+  updated_by text                 -- optional free-text initials/name, nullable
+);
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+alter table public.deliverable_status enable row level security;
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+drop policy if exists "anyone can read"  on public.deliverable_status;
+create policy "anyone can read"  on public.deliverable_status for select using (true);
 
-### `npm run eject`
+drop policy if exists "anyone can write" on public.deliverable_status;
+create policy "anyone can write" on public.deliverable_status for insert with check (true);
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+drop policy if exists "anyone can update" on public.deliverable_status;
+create policy "anyone can update" on public.deliverable_status for update using (true);
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+-- Enable Realtime so every open client stays in sync within ~1s.
+alter publication supabase_realtime add table public.deliverable_status;
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+> No auth wall is intentional — this is a small trusted crew. Open read/write RLS.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Local development
 
-## Learn More
+```bash
+npm install      # or: yarn
+npm run dev      # http://localhost:3000
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Deploy to Vercel
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+1. Push this folder to a Git repo and import it in Vercel (framework auto-detects Next.js).
+2. Add the two `NEXT_PUBLIC_SUPABASE_*` env vars.
+3. Deploy. Update `APP_URL` in `src/lib/data.ts` to your final domain when known
+   (used as the share-link fallback).
 
-### Code Splitting
+## Updating content for future years
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Edit only `src/lib/data.ts`. The UI is fully data-driven; the `id` values in
+`DELIVERABLES` / `SOCIALS` are the Supabase row keys for live status.
 
-### Analyzing the Bundle Size
+## Valid status `id` values
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Production videos: `intro-prelim, fire-dress, intro-teen-finals, intro-miss-finals,
+parade, teen-program, talent-intro, interviews-teen, interviews-miss, palmetto-stars,
+week-review, scholarship, replacement-topic`
 
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Social cuts: `pj-recap, interview-reel, miss-hype, teen-hype, teen-crown, miss-crown,
+emcee, talent-recap, prelim-teen-recap, prelim-miss-recap, tea-party`
