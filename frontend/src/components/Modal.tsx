@@ -65,7 +65,12 @@ export function Modal({
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer && (
-          <div className="safe-bottom border-t border-line px-5 py-5">{footer}</div>
+          <div
+            className="border-t border-line px-5 pt-5"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.25rem)" }}
+          >
+            {footer}
+          </div>
         )}
       </div>
     </div>
