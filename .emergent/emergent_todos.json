@@ -20,7 +20,11 @@
     "status": "completed"
   },
   {
-    "content": "End-to-end test save/edit/delivery-link against Supabase (BLOCKED: needs user to run migration SQL)",
-    "status": "in_progress"
+    "content": "End-to-end test save/edit/delivery-link against Supabase (after migration)",
+    "status": "completed"
+  },
+  {
+    "content": "Increase footer button padding on Modal per user request",
+    "status": "completed"
   }
 ]
