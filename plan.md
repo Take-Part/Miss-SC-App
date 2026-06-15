@@ -2,19 +2,25 @@
 
 ## 1) Objectives
 - Build a **mobile-first, on-site crew web app** where the **baseline factual content** is loaded verbatim from `data.ts`.
-- Deliver the headline feature: **Supabase Postgres + Realtime** shared deliverable/social **4-state status** that syncs across clients in ~1s with no refresh.
-- Deliver requested production features:
+- Use **Supabase Postgres + Realtime** so changes sync across all devices in ~1s without refresh.
+- Deliver production features:
   1. **Fancier jewel-tone navigation** with distinct color separation (desktop + mobile hamburger panel).
   2. **Master Schedule defaults to the actual current date** (in the context of the 2026 event).
   3. **Editable deliverable details** (title, description/notes, location, due text, example links) stored in Supabase and shared via Realtime.
   4. **Delivered flow**: “Delivered” → confirm “Are you sure?” → if yes, prompt for an editable/clickable **delivery link**.
-  5. **Cross-navigation**: from **Today** and **Schedule (Our shoots)**, each schedule item that maps to a deliverable shows a **“View in Deliverables”** (or **deliverable title**) button that jumps directly to the matching deliverable card and briefly highlights it.
-  6. **Full CRUD control (new requirement)**:
-     - **Deliverables**: add new deliverables, edit, **delete via hide (soft-delete)**, and **restore hidden items**.
-     - **Schedule** (both “Our shoots” and “Master”): add/edit/delete (hide) schedule items and add/remove days.
+  5. **Cross-navigation**: from **Today** and **Schedule (Our shoots)**, schedule items that map to deliverables show a **“View in Deliverables”** (or deliverable title) button that jumps to the matching deliverable card and briefly highlights it.
+  6. **Full CRUD control** (add/edit/delete-hide/restore), shared crew-wide:
+     - **Deliverables**: add new deliverables, edit, **delete via hide (soft-delete)** with confirmation, and **restore hidden items**; optional **purge custom** deliverables.
+     - **Schedule** (both “Our shoots” and “Master”): add/edit/delete-hide/restore schedule items and add/remove whole days.
 - Ensure **graceful degradation** when Supabase is missing/unreachable: static content still works; no white-screen.
 - Keep `/app/backend` ignored (not deployed). App is **Next.js + Supabase direct**.
 - Remain **Vercel build-safe** under **TypeScript strict** (`npx tsc --noEmit`).
+
+**Current status (high-level):**
+- ✅ Phases 1–2 complete.
+- ✅ Phase 3A (Deliverables CRUD) complete and verified.
+- ✅ Phase 3B (Schedule CRUD) complete and verified.
+- ⏳ Optional: add a DELETE RLS policy for `deliverable_status` so **purge custom deliverables** works everywhere.
 
 ---
 
@@ -47,7 +53,7 @@
   - Implement fetch, upsert (optimistic), subscribe to `postgres_changes`.
   - Verify two browsers sync.
 
-**Status:** Complete.
+**Status:** ✅ Complete.
 
 ---
 
@@ -91,7 +97,7 @@
 - ✅ Cross-navigation implemented (Today + Schedule Our shoots → Deliverables, with scroll + highlight).
 
 **Frontend implementation details (important):**
-- Supabase column names used by the app:
+- Supabase column names used by deliverable overrides:
   - `title` (text)
   - `notes` (text)
   - `loc` (text)
@@ -109,7 +115,7 @@
 - ✅ Supabase migration applied; edits + links persist.
 - ✅ Visual verification complete via screenshots + DOM checks.
 
-**Status:** Complete.
+**Status:** ✅ Complete.
 
 ---
 
@@ -130,8 +136,8 @@ This phase adds the ability to **add/edit/delete (hide)/restore** both **Deliver
   - Built-in items: hide via `hidden=true` (soft-delete, reversible).
   - Custom items: created as rows with `is_custom=true` and metadata (`kind`, `must`, `film`, `due`, etc.).
 
-**Backend / schema changes (required)**
-- Migration `0003_deliverable_crud.sql` adds:
+**Backend / schema changes**
+- ✅ Migration `0003_deliverable_crud.sql` applied by user; adds:
   - `hidden boolean default false`
   - `is_custom boolean default false`
   - `kind text` (`video|social`)
@@ -146,7 +152,7 @@ This phase adds the ability to **add/edit/delete (hide)/restore** both **Deliver
 - `useStatuses.ts`:
   - `EditableFields` expanded to include new fields.
   - `addDeliverable(payload)` creates `cd_<uuid>` id, optimistic update + upsert.
-  - `deleteRow(id)` hard-deletes rows (used for purging custom items).
+  - `deleteRow(id)` attempts hard delete (used for purging custom items).
 - `DeliverableDialogs.tsx`:
   - `AddDeliverableDialog`
   - `ConfirmDialog`
@@ -157,55 +163,73 @@ This phase adds the ability to **add/edit/delete (hide)/restore** both **Deliver
   - `useMemo` merges built-in list + custom items, splits hidden into `liveItems` vs `hiddenItems`.
   - UI actions: Add deliverable button, Hidden(n) manager, per-card delete (soft-hide) with confirm, restore, and purge custom.
 
-**Status:**
-- ✅ Frontend complete + `tsc` clean + UI verified.
-- ⏳ Pending: user runs Supabase migration `0003_deliverable_crud.sql` then we run functional save/restore/purge tests against Supabase.
+**Testing / verification**
+- ✅ UI verified:
+  - Adding a deliverable increments counts and persists.
+  - Hide + restore cycle works crew-wide.
+- ✅ REST verification:
+  - All new fields round-trip correctly.
 
-**Phase 3A Testing**
-- After migration:
-  - Add a custom deliverable and confirm it persists and syncs across two sessions.
-  - Hide a built-in deliverable and confirm it disappears for all clients and is restorable.
-  - Restore from Hidden manager.
-  - Purge a custom deliverable and confirm deletion.
+**Status:** ✅ Complete.
+
+**Optional follow-up (recommended): enable purge for custom deliverables**
+- ⏳ Add RLS DELETE policy for `deliverable_status` (needed for purge via anon key):
+  ```sql
+  DROP POLICY IF EXISTS "deliverable_status delete" ON public.deliverable_status;
+  CREATE POLICY "deliverable_status delete" ON public.deliverable_status
+    FOR DELETE USING (true);
+  ```
 
 ---
 
 #### Phase 3B — Schedule CRUD (Our shoots + Master; add/edit/delete-hide/restore + days)
 **User stories (Schedule CRUD)**
 1. As a producer, I can add a schedule item to any day (Our shoots or Master) and it appears for everyone.
-2. As a producer, I can edit any schedule item fields: time, title, location, type, b-roll, crew notes, star tags, and linked deliverable ids.
+2. As a producer, I can edit any schedule item fields: time, title, location, type, b-roll, crew notes, star tags, sub-notes, and linked deliverable ids.
 3. As a producer, I can hide a built-in schedule item (soft-delete) with confirmation and restore it later.
 4. As a producer, I can add/remove entire days from the schedule view.
 
-**Proposed data model (to be implemented)**
-- Keep baseline schedule content in `data.ts`.
-- Add a new Supabase table (recommended) `schedule_items` with:
-  - `id text primary key` (stable deterministic id for built-ins + uuid for customs)
-  - `schedule_kind text not null` (`shoots|master`)
-  - `day text not null` (e.g. `Sun 6/14`)
-  - `hidden boolean default false`
-  - `is_custom boolean default false`
-  - fields for all editable properties:
-    - `time text`, `type text`, `title text`, `loc text`, `broll boolean`, `crew text`, `stars jsonb`, `deliv jsonb`, plus any master-specific fields
-  - `updated_at timestamptz default now()`, `updated_by text`
-- Deterministic IDs for built-ins so we can hide/override without editing `data.ts`:
-  - e.g. `shoots:Sun 6/14:3` or a hash-based id.
+**Data model (implemented)**
+- Baseline schedule content remains in `data.ts`.
+- Overlays (custom items, edits, hides, custom days, day hides) are stored in Supabase table `schedule_items`.
+- Deterministic IDs for built-in schedule items:
+  - `${kind}:${date}:${index}` where kind is `shoots|master`.
+- Day hiding uses deterministic IDs:
+  - `dayhide:${kind}:${date}`.
 
-**Steps (Phase 3B)**
-1. Define stable IDs for all built-in schedule items (computed at runtime).
-2. Implement schedule merge logic:
-   - baseline items from `data.ts`
-   - overlay rows from `schedule_items` (edits/custom/hides)
-3. Build editor UX:
-   - Add item
-   - Edit item
-   - Confirm delete/hide
-   - Hidden items manager + restore
-   - Add/remove day
-4. Add realtime subscription for `schedule_items`.
-5. Provide Supabase migration SQL for `schedule_items` + RLS/realtime configuration.
+**Backend / schema changes**
+- ✅ Migration `0004_schedule_items.sql` applied by user:
+  - Creates `public.schedule_items` with fields covering both schedules and day rows (`is_day=true`).
+  - Enables RLS with permissive policies for select/insert/update/delete.
+  - Adds the table to `supabase_realtime` publication.
+  - `NOTIFY pgrst, 'reload schema'`.
 
-**Status:** Not started.
+**Frontend implementation (completed)**
+- `src/lib/useSchedule.ts`: realtime hook mirroring `useStatuses`.
+- `src/components/ScheduleDialogs.tsx`: add/edit item dialog, add day dialog, hidden manager.
+- `src/components/tabs/ScheduleTab.tsx`: rewritten to:
+  - merge baseline schedule with overlay rows;
+  - support add/edit/delete-hide/restore for items;
+  - support add/delete-hide/restore for days;
+  - keep Search and B-roll filter (Master mode);
+  - preserve Deliverables cross-navigation.
+- `src/components/CrewApp.tsx`: wires `useSchedule(statuses.initials)` into `ScheduleTab`.
+- `src/lib/utils.ts`: `parseTimeMin()` added so custom and merged items sort by time.
+
+**Testing / verification**
+- ✅ `npx tsc --noEmit` passes.
+- ✅ REST E2E passed (with cleanup):
+  - add custom item (+jsonb `deliv`)
+  - edit built-in override row
+  - hide built-in item
+  - add custom day
+  - hide built-in day
+  - delete policy confirmed + all test rows removed
+- ✅ UI verified:
+  - add-item flow works; item appears time-sorted with **ADDED** badge.
+  - Master schedule mode renders and B-roll filter works.
+
+**Status:** ✅ Complete.
 
 ---
 
@@ -217,38 +241,40 @@ This phase adds the ability to **add/edit/delete (hide)/restore** both **Deliver
 4. As a producer, I can deploy to Vercel with only env vars and no code changes.
 5. As the team, we can confidently update only `data.ts` for future years without breaking the UI.
 
-**Steps**
-- Footer + share/install UX:
-  - Share link: prefer live `window.location.href`, fallback `APP_URL`.
-  - Add to Home Screen instructions.
+**Steps (remaining work)**
 - Reliability:
-  - Central Supabase client + connection health state.
-  - Retry/backoff for initial fetch; subscription reconnect handling.
-  - Ensure no runtime crash when env vars missing.
+  - Confirm all tabs degrade gracefully when Supabase is unreachable (deliverables and schedule CRUD become read-only but still render baseline `data.ts`).
+  - Add reconnect/backoff messaging for schedule as well (similar to deliverables).
 - Documentation:
-  - README with env vars and exact Supabase SQL (include migrations 0002/0003 + schedule table migration).
+  - Update README with:
+    - required env vars
+    - SQL migrations: `0002_deliverable_overrides.sql`, `0003_deliverable_crud.sql`, `0004_schedule_items.sql`
+    - optional deliverables DELETE policy for purge
+- Pre-deploy checks:
+  - `cd /app/frontend && npx tsc --noEmit`
+  - `cd /app/frontend && npm run build`
+
+**Status:** ⏳ Not started (recommended polishing step).
 
 ---
 
 ## 3) Next Actions
-1. **Run Supabase migration for Deliverables CRUD (required):**
-   - Execute `frontend/supabase/migrations/0003_deliverable_crud.sql` in Supabase SQL Editor.
-2. **Functional verification (after migration):**
-   - Add custom deliverable → refresh → confirm persistence.
-   - Hide built-in deliverable → confirm it disappears for all clients → restore via Hidden.
-   - Purge custom deliverable.
-3. **Begin Phase 3B (Schedule CRUD):**
-   - Approve final schema for `schedule_items` and ID strategy.
-   - Provide migration SQL; implement UI editors; verify realtime sync.
-4. **Pre-deploy check (recommended):**
+1. **Optional (recommended): enable purge for custom deliverables** by running the deliverables DELETE policy:
+   ```sql
+   DROP POLICY IF EXISTS "deliverable_status delete" ON public.deliverable_status;
+   CREATE POLICY "deliverable_status delete" ON public.deliverable_status
+     FOR DELETE USING (true);
+   ```
+2. **Hardening (recommended):** verify offline/unconfigured Supabase behavior for both Deliverables and Schedule CRUD.
+3. **Pre-deploy check:**
    - `cd /app/frontend && npx tsc --noEmit`
    - `cd /app/frontend && npm run build`
-5. **Vercel deploy:** user deploys with only env vars.
+4. **Vercel deploy:** user deploys with only env vars.
 
 ---
 
 ## 4) Success Criteria
-- **Data integrity:** baseline values from `data.ts` appear exactly unless overridden by explicit CRUD edits.
+- **Data integrity:** baseline values from `data.ts` appear exactly unless overridden by explicit CRUD edits stored in Supabase overlays.
 - **Realtime:** status/content/schedule CRUD changes in Browser A update Browser B within ~1s.
 - **Persistence:** statuses + edits + links + custom items + hidden flags remain after reload.
 - **Delivered flow:** Delivered → confirm → link capture works; link is editable and clickable.

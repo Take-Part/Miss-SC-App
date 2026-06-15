@@ -1,26 +1,26 @@
 [
   {
-    "content": "Phase A: Deliverables add/edit/delete-hide/restore — DONE + verified",
+    "content": "Phase A: Deliverables add/edit/delete-hide/restore — DONE + verified (UI + REST)",
     "status": "completed"
   },
   {
-    "content": "Phase A: Purge needs DELETE RLS policy — user to run snippet",
+    "content": "Phase A: Purge DELETE policy snippet — provided to user",
     "status": "completed"
   },
   {
-    "content": "Phase B: useSchedule hook + realtime + ScheduleDialogs + ScheduleTab overlay merge",
+    "content": "Phase B: useSchedule hook + ScheduleDialogs + ScheduleTab overlay merge — DONE",
     "status": "completed"
   },
   {
-    "content": "Phase B: Wire useSchedule into CrewApp; tsc clean; UI renders (edit/delete/add day/add item)",
+    "content": "Phase B: Wire into CrewApp; tsc clean",
     "status": "completed"
   },
   {
-    "content": "Phase B: Migration 0004 SQL (schedule_items table) — user to run",
-    "status": "in_progress"
+    "content": "Phase B: Migration 0004 run by user",
+    "status": "completed"
   },
   {
-    "content": "Phase B: Functional E2E test (add/edit/delete/restore item + day) after migration",
-    "status": "pending"
+    "content": "Phase B: Functional E2E test (add/edit/delete/restore item + day, both modes) — PASSED + cleaned up",
+    "status": "completed"
   }
 ]
