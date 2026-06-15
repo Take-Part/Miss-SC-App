@@ -16,3 +16,16 @@ ALTER TABLE public.deliverable_status
 
 -- Make sure PostgREST picks up the new columns immediately.
 NOTIFY pgrst, 'reload schema';
+
+-- ----------------------------------------------------------------------------
+-- RLS: allow DELETE so "purge" of custom deliverables works with the anon key.
+-- (The table already has open SELECT/INSERT/UPDATE policies for the crew app.)
+-- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "deliverable_status delete" ON public.deliverable_status;
+CREATE POLICY "deliverable_status delete"
+  ON public.deliverable_status
+  FOR DELETE
+  USING (true);
+
+-- Clean up the QA test row left over from verification (no-op if absent).
+DELETE FROM public.deliverable_status WHERE id = '__crud_test__';

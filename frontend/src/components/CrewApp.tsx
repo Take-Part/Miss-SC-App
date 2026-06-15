@@ -5,6 +5,7 @@ import { Masthead } from "./Masthead";
 import { Nav, type TabKey } from "./Nav";
 import { Footer } from "./Footer";
 import { useStatuses } from "@/lib/useStatuses";
+import { useSchedule } from "@/lib/useSchedule";
 import { TodayTab } from "./tabs/TodayTab";
 import { ScheduleTab } from "./tabs/ScheduleTab";
 import { DeliverablesTab } from "./tabs/DeliverablesTab";
@@ -17,6 +18,7 @@ export function CrewApp() {
   const [active, setActive] = useState<TabKey>("today");
   // Created once at the top so the realtime subscription stays alive across tabs.
   const statuses = useStatuses();
+  const schedule = useSchedule(statuses.initials);
   // Cross-navigation: jump straight to a deliverable from Today / Schedule.
   const [focusDeliverable, setFocusDeliverable] = useState<string | null>(null);
 
@@ -32,7 +34,10 @@ export function CrewApp() {
       <main className="mx-auto max-w-3xl px-4 py-5">
         {active === "today" && <TodayTab onOpenDeliverable={openDeliverable} />}
         {active === "schedule" && (
-          <ScheduleTab onOpenDeliverable={openDeliverable} />
+          <ScheduleTab
+            schedule={schedule}
+            onOpenDeliverable={openDeliverable}
+          />
         )}
         {active === "deliverables" && (
           <DeliverablesTab

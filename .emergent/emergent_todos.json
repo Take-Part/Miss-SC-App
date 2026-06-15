@@ -1,30 +1,26 @@
 [
   {
-    "content": "Phase A: Extend StatusRow type with hidden/is_custom/kind/must/film/film_days/due_day",
+    "content": "Phase A: Deliverables add/edit/delete-hide/restore — DONE + verified",
     "status": "completed"
   },
   {
-    "content": "Phase A: useStatuses — addDeliverable(), deleteRow(), extend updateFields fields",
+    "content": "Phase A: Purge needs DELETE RLS policy — user to run snippet",
     "status": "completed"
   },
   {
-    "content": "Phase A: New dialogs — AddDeliverableDialog, ConfirmDialog, HiddenDialog; EditDialog allowReset",
+    "content": "Phase B: useSchedule hook + realtime + ScheduleDialogs + ScheduleTab overlay merge",
     "status": "completed"
   },
   {
-    "content": "Phase A: DeliverablesTab — merge custom+built-in, hide filtering, header actions, delete button, restore panel",
+    "content": "Phase B: Wire useSchedule into CrewApp; tsc clean; UI renders (edit/delete/add day/add item)",
     "status": "completed"
   },
   {
-    "content": "Phase A: Write Supabase migration SQL (new columns) for user to run",
-    "status": "completed"
-  },
-  {
-    "content": "Phase A: tsc + UI verification (DONE). Functional add/delete test pending user running migration 0003 SQL",
+    "content": "Phase B: Migration 0004 SQL (schedule_items table) — user to run",
     "status": "in_progress"
   },
   {
-    "content": "Phase B: Schedule add/edit/delete items + days (both schedules)",
+    "content": "Phase B: Functional E2E test (add/edit/delete/restore item + day) after migration",
     "status": "pending"
   }
 ]

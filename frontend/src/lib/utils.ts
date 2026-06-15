@@ -85,3 +85,18 @@ export function todayDate(days: { date: string }[]): string | null {
   const found = days.find((d) => splitDate(d.date).md === md);
   return found ? found.date : null;
 }
+
+
+/** Parse a clock time like "8:00 AM" / "1:15 PM" into minutes-from-midnight.
+ *  Returns a large number for unparseable/empty so such items sort last. */
+export function parseTimeMin(t: string | null | undefined): number {
+  if (!t) return Number.POSITIVE_INFINITY;
+  const m = t.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/i);
+  if (!m) return Number.POSITIVE_INFINITY;
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  const ap = (m[3] || "").toLowerCase();
+  if (ap.startsWith("p") && h !== 12) h += 12;
+  if (ap.startsWith("a") && h === 12) h = 0;
+  return h * 60 + min;
+}
