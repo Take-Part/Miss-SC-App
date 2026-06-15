@@ -1,34 +1,26 @@
 [
   {
-    "content": "Add findDeliverableMeta() lookup helper to data.ts (searches DELIVERABLES + SOCIALS)",
+    "content": "Phase A: Deliverables add/edit/delete-hide/restore — DONE + verified (UI + REST)",
     "status": "completed"
   },
   {
-    "content": "Add reusable DeliverableLink button to primitives.tsx",
+    "content": "Phase A: Purge DELETE policy snippet — provided to user",
     "status": "completed"
   },
   {
-    "content": "Lift focus/navigation state in CrewApp.tsx (openDeliverable)",
+    "content": "Phase B: useSchedule hook + ScheduleDialogs + ScheduleTab overlay merge — DONE",
     "status": "completed"
   },
   {
-    "content": "DeliverablesTab: scroll-to + highlight target card via focusId",
+    "content": "Phase B: Wire into CrewApp; tsc clean",
     "status": "completed"
   },
   {
-    "content": "TodayTab: add 'View in Deliverables' buttons on items with deliv",
+    "content": "Phase B: Migration 0004 run by user",
     "status": "completed"
   },
   {
-    "content": "ScheduleTab (Our shoots): add 'View in Deliverables' buttons",
-    "status": "completed"
-  },
-  {
-    "content": "Add highlight keyframe to globals.css",
-    "status": "completed"
-  },
-  {
-    "content": "tsc --noEmit + visual verification of navigation flow",
+    "content": "Phase B: Functional E2E test (add/edit/delete/restore item + day, both modes) — PASSED + cleaned up",
     "status": "completed"
   }
 ]

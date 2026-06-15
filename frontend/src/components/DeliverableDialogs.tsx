@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Link2 } from "lucide-react";
+import { Plus, Trash2, Link2, RotateCcw } from "lucide-react";
 import { Modal } from "./Modal";
 import { cn } from "@/lib/utils";
 import type { StatusLink } from "@/lib/status";
@@ -59,6 +59,7 @@ export function EditDialog({
   onClose,
   onSave,
   onReset,
+  allowReset = true,
 }: {
   open: boolean;
   item: EditableItem;
@@ -66,6 +67,7 @@ export function EditDialog({
   onClose: () => void;
   onSave: (partial: EditPartial) => void;
   onReset: () => void;
+  allowReset?: boolean;
 }) {
   const [title, setTitle] = useState(current.title);
   const [notes, setNotes] = useState(current.notes);
@@ -105,17 +107,24 @@ export function EditDialog({
       title="Edit deliverable"
       subtitle="Edits sync to the whole crew. Blank a field to restore the original."
       footer={
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onReset();
-              onClose();
-            }}
-            className="text-[12.5px] font-semibold text-ink/45 transition-colors hover:text-deadline"
-          >
-            Reset to original
-          </button>
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            allowReset ? "justify-between" : "justify-end"
+          )}
+        >
+          {allowReset && (
+            <button
+              type="button"
+              onClick={() => {
+                onReset();
+                onClose();
+              }}
+              className="text-[12.5px] font-semibold text-ink/45 transition-colors hover:text-deadline"
+            >
+              Reset to original
+            </button>
+          )}
           <div className="flex gap-2">
             <button
               type="button"
@@ -337,6 +346,383 @@ export function DeliveredDialog({
             Tip: paste a Google Drive, Frame.io, or Dropbox link.
           </p>
         </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ---------- Reusable example-links editor ---------- */
+
+function LinksEditor({
+  links,
+  setLinks,
+}: {
+  links: StatusLink[];
+  setLinks: React.Dispatch<React.SetStateAction<StatusLink[]>>;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">
+          Example links
+        </span>
+        <button
+          type="button"
+          onClick={() => setLinks((p) => [...p, { label: "", url: "" }])}
+          className="inline-flex items-center gap-1 text-[12px] font-semibold text-crown-deep hover:text-crown"
+        >
+          <Plus size={14} /> Add
+        </button>
+      </div>
+      <div className="mt-1.5 space-y-2">
+        {links.length === 0 && (
+          <p className="text-[12px] italic text-ink/35">No links yet.</p>
+        )}
+        {links.map((l, i) => (
+          <div key={i} className="flex gap-2">
+            <input
+              value={l.label}
+              onChange={(e) =>
+                setLinks((p) =>
+                  p.map((x, j) => (j === i ? { ...x, label: e.target.value } : x))
+                )
+              }
+              placeholder="Label"
+              className={cn(inputCls, "mt-0 w-28 shrink-0")}
+            />
+            <input
+              value={l.url}
+              onChange={(e) =>
+                setLinks((p) =>
+                  p.map((x, j) => (j === i ? { ...x, url: e.target.value } : x))
+                )
+              }
+              placeholder="https://…"
+              className={cn(inputCls, "mt-0 min-w-0 flex-1")}
+            />
+            <button
+              type="button"
+              onClick={() => setLinks((p) => p.filter((_, j) => j !== i))}
+              aria-label="Remove link"
+              className="grid w-9 shrink-0 place-items-center rounded-lg border border-line text-ink/40 hover:border-deadline/40 hover:text-deadline"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Add a brand-new deliverable ---------- */
+
+export interface NewDeliverableInput {
+  kind: "video" | "social";
+  must: boolean;
+  title: string;
+  notes: string;
+  loc: string | null;
+  due: string;
+  film: string;
+  links: StatusLink[] | null;
+}
+
+type AddKind = "video" | "must" | "nice";
+
+export function AddDeliverableDialog({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (payload: NewDeliverableInput) => void;
+}) {
+  const [kind, setKind] = useState<AddKind>("video");
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [loc, setLoc] = useState("");
+  const [due, setDue] = useState("");
+  const [film, setFilm] = useState("");
+  const [links, setLinks] = useState<StatusLink[]>([]);
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setKind("video");
+      setTitle("");
+      setNotes("");
+      setLoc("");
+      setDue("");
+      setFilm("");
+      setLinks([]);
+      setTouched(false);
+    }
+  }, [open]);
+
+  const valid = title.trim().length > 0;
+
+  const create = () => {
+    setTouched(true);
+    if (!valid) return;
+    const cleaned = links
+      .map((l) => ({ label: l.label.trim(), url: l.url.trim() }))
+      .filter((l) => l.label || l.url);
+    onCreate({
+      kind: kind === "video" ? "video" : "social",
+      must: kind === "must",
+      title: title.trim(),
+      notes: notes.trim(),
+      loc: loc.trim() || null,
+      due: due.trim() || "TBD",
+      film: film.trim() || "—",
+      links: cleaned.length ? cleaned : null,
+    });
+    onClose();
+  };
+
+  const kindOptions: { value: AddKind; label: string }[] = [
+    { value: "video", label: "Video" },
+    { value: "must", label: "Social · Must" },
+    { value: "nice", label: "Social · Nice" },
+  ];
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Add deliverable"
+      subtitle="New deliverables sync to the whole crew instantly."
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-ink/60 hover:bg-ink/5"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={create}
+            disabled={!valid}
+            data-testid="add-deliverable-submit"
+            className="rounded-lg bg-ink px-4 py-2 text-[13px] font-bold text-paper transition-colors hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Create
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-3.5">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">
+            Type
+          </span>
+          <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-ink/5 p-1">
+            {kindOptions.map((o) => {
+              const active = o.value === kind;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setKind(o.value)}
+                  className={cn(
+                    "rounded-lg px-1.5 py-2 text-[12px] font-semibold transition-colors",
+                    active
+                      ? "bg-ink text-paper shadow-sm"
+                      : "text-ink/55 hover:bg-card hover:text-ink/80"
+                  )}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <Field label="Title">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Closing Montage"
+            data-testid="add-deliverable-title"
+            className={cn(
+              inputCls,
+              touched && !valid && "border-deadline/60 focus:border-deadline/60"
+            )}
+          />
+          {touched && !valid && (
+            <span className="mt-1 block text-[11.5px] font-medium text-deadline">
+              A title is required.
+            </span>
+          )}
+        </Field>
+        <Field label="Description">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className={cn(inputCls, "resize-y")}
+          />
+        </Field>
+        <Field label="Film / when">
+          <input
+            value={film}
+            onChange={(e) => setFilm(e.target.value)}
+            placeholder="e.g. Fri 6/19, evening"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Location">
+          <input
+            value={loc}
+            onChange={(e) => setLoc(e.target.value)}
+            placeholder="e.g. Township Auditorium"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Due">
+          <input
+            value={due}
+            onChange={(e) => setDue(e.target.value)}
+            placeholder="e.g. Sat 6/20, 11:00 AM"
+            className={inputCls}
+          />
+        </Field>
+        <LinksEditor links={links} setLinks={setLinks} />
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Generic confirm dialog (e.g. delete) ---------- */
+
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = "Delete",
+  destructive = true,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  message: React.ReactNode;
+  confirmLabel?: string;
+  destructive?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onCancel}
+      title={title}
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-ink/60 hover:bg-ink/5"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onConfirm();
+              onCancel();
+            }}
+            data-testid="confirm-dialog-confirm"
+            className={cn(
+              "rounded-lg px-4 py-2 text-[13px] font-bold text-white transition-colors",
+              destructive ? "bg-deadline hover:bg-deadline/90" : "bg-ink hover:bg-ink/90"
+            )}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      }
+    >
+      <div className="text-[13.5px] leading-relaxed text-ink/75">{message}</div>
+    </Modal>
+  );
+}
+
+/* ---------- Hidden / removed items manager ---------- */
+
+export interface HiddenEntry {
+  id: string;
+  title: string;
+  kind: "video" | "social";
+  isCustom: boolean;
+}
+
+export function HiddenDialog({
+  open,
+  items,
+  onClose,
+  onRestore,
+  onPurge,
+}: {
+  open: boolean;
+  items: HiddenEntry[];
+  onClose: () => void;
+  onRestore: (id: string) => void;
+  onPurge: (id: string) => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Hidden deliverables"
+      subtitle="Restore an item to bring it back for the whole crew."
+    >
+      {items.length === 0 ? (
+        <p className="py-6 text-center text-[13px] text-ink/45">
+          Nothing is hidden right now.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((it) => (
+            <li
+              key={it.id}
+              data-testid={`hidden-item-${it.id}`}
+              className="flex items-center gap-2 rounded-xl border border-line bg-paper/40 px-3 py-2.5"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13.5px] font-semibold text-ink">
+                  {it.title}
+                </span>
+                <span className="text-[11px] uppercase tracking-wide text-ink/40">
+                  {it.kind}
+                  {it.isCustom ? " · added in-app" : " · built-in"}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onRestore(it.id)}
+                data-testid={`restore-${it.id}`}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-shoot/30 bg-shoot/8 px-2.5 py-1.5 text-[12px] font-semibold text-shoot transition-colors hover:bg-shoot/15"
+              >
+                <RotateCcw size={13} /> Restore
+              </button>
+              {it.isCustom && (
+                <button
+                  type="button"
+                  onClick={() => onPurge(it.id)}
+                  aria-label="Delete permanently"
+                  data-testid={`purge-${it.id}`}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line text-ink/40 transition-colors hover:border-deadline/40 hover:text-deadline"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </Modal>
   );

@@ -5,8 +5,40 @@ import { supabase, isSupabaseConfigured, STATUS_TABLE } from "./supabase";
 import {
   type StatusRow,
   type StatusValue,
+  type StatusLink,
   DEFAULT_STATUS,
 } from "./status";
+
+/** Fields that can be written via updateFields / addDeliverable. */
+export type EditableFields = Pick<
+  StatusRow,
+  | "status"
+  | "title"
+  | "notes"
+  | "loc"
+  | "due"
+  | "links"
+  | "delivered_link"
+  | "hidden"
+  | "is_custom"
+  | "kind"
+  | "must"
+  | "film"
+  | "film_days"
+  | "due_day"
+>;
+
+/** Payload for creating a brand-new (custom) deliverable. */
+export interface NewDeliverablePayload {
+  kind: "video" | "social";
+  must: boolean;
+  title: string;
+  notes: string;
+  loc: string | null;
+  due: string;
+  film: string;
+  links: StatusLink[] | null;
+}
 
 export interface UseStatuses {
   /** map of id -> row (only ids that have been written). */
@@ -16,15 +48,11 @@ export interface UseStatuses {
   rowOf: (id: string) => StatusRow | undefined;
   setStatus: (id: string, status: StatusValue) => void;
   /** Upsert any subset of editable columns (status + content overrides). */
-  updateFields: (
-    id: string,
-    partial: Partial<
-      Pick<
-        StatusRow,
-        "status" | "title" | "notes" | "loc" | "due" | "links" | "delivered_link"
-      >
-    >
-  ) => void;
+  updateFields: (id: string, partial: Partial<EditableFields>) => void;
+  /** Create a new custom deliverable; returns its generated id. */
+  addDeliverable: (payload: NewDeliverablePayload) => string;
+  /** Permanently remove a row (used to purge custom items). */
+  deleteRow: (id: string) => void;
   configured: boolean;
   connected: boolean;
   /** initial load finished (or skipped when unconfigured). */
@@ -138,15 +166,7 @@ export function useStatuses(): UseStatuses {
   const rowOf = useCallback((id: string) => map[id], [map]);
 
   const updateFields = useCallback(
-    (
-      id: string,
-      partial: Partial<
-        Pick<
-          StatusRow,
-          "status" | "title" | "notes" | "loc" | "due" | "links" | "delivered_link"
-        >
-      >
-    ) => {
+    (id: string, partial: Partial<EditableFields>) => {
       const prev = mapRef.current[id];
       const now = new Date().toISOString();
       const by = initials || null;
@@ -184,6 +204,76 @@ export function useStatuses(): UseStatuses {
     [initials]
   );
 
+  const addDeliverable = useCallback(
+    (payload: NewDeliverablePayload): string => {
+      const rnd =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+      const id = `cd_${rnd}`;
+      const now = new Date().toISOString();
+      const by = initials || null;
+      const fields = {
+        status: DEFAULT_STATUS,
+        is_custom: true,
+        hidden: false,
+        kind: payload.kind,
+        must: payload.kind === "social" ? payload.must : null,
+        title: payload.title,
+        notes: payload.notes,
+        loc: payload.loc,
+        due: payload.due,
+        film: payload.film,
+        links: payload.links,
+      };
+      const row: StatusRow = { id, updated_at: now, updated_by: by, ...fields };
+      setMap((p) => ({ ...p, [id]: row }));
+
+      if (supabase) {
+        const sb = supabase;
+        sb
+          .from(STATUS_TABLE)
+          .upsert({ id, ...fields, updated_at: now, updated_by: by })
+          .then(({ error }) => {
+            if (error) {
+              setError("Couldn’t add — check connection.");
+              setMap((p) => {
+                const copy = { ...p };
+                delete copy[id];
+                return copy;
+              });
+              setTimeout(() => setError(null), 4000);
+            }
+          });
+      }
+      return id;
+    },
+    [initials]
+  );
+
+  const deleteRow = useCallback((id: string) => {
+    const prev = mapRef.current[id];
+    setMap((p) => {
+      const copy = { ...p };
+      delete copy[id];
+      return copy;
+    });
+    if (supabase) {
+      const sb = supabase;
+      sb
+        .from(STATUS_TABLE)
+        .delete()
+        .eq("id", id)
+        .then(({ error }) => {
+          if (error) {
+            setError("Couldn’t delete — check connection.");
+            if (prev) setMap((p) => ({ ...p, [id]: prev }));
+            setTimeout(() => setError(null), 4000);
+          }
+        });
+    }
+  }, []);
+
   const setStatus = useCallback(
     (id: string, status: StatusValue) => updateFields(id, { status }),
     [updateFields]
@@ -195,6 +285,8 @@ export function useStatuses(): UseStatuses {
     rowOf,
     setStatus,
     updateFields,
+    addDeliverable,
+    deleteRow,
     configured: isSupabaseConfigured,
     connected,
     loaded,

@@ -72,6 +72,14 @@ export interface StatusRow {
   due?: string | null;
   links?: StatusLink[] | null;
   delivered_link?: string | null;
+  // ---- add / delete (hide) support ----
+  hidden?: boolean | null; // soft-delete: true => hidden from the main list
+  is_custom?: boolean | null; // true => created in-app (not from data.ts)
+  kind?: "video" | "social" | null; // for custom items: which section
+  must?: boolean | null; // social only: true=must-have, false=nice-to-have
+  film?: string | null; // custom items: film/when label
+  film_days?: string[] | null; // optional day codes for filtering
+  due_day?: string | null; // optional due-day code
 }
 
 export function isValidStatus(v: unknown): v is StatusValue {
